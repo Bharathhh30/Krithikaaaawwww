@@ -153,12 +153,13 @@ Use `QMetaObject.invokeMethod` with `Qt.ConnectionType.QueuedConnection` for thr
 
 ---
 
-## Dependencies to Add to `requirements.txt`
+## Dependencies to Add with uv
 
+```powershell
+uv add "PyQt6>=6.6.0" "screeninfo>=0.8.1"
 ```
-PyQt6>=6.6.0
-screeninfo>=0.8.1
-```
+
+Commit the resulting `pyproject.toml` and `uv.lock` changes together.
 
 ---
 

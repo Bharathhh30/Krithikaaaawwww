@@ -47,9 +47,9 @@ krithika/                          ← repo root
 ├── config.yaml.example            ← committed template, never config.yaml
 ├── main.py                        ← entry point: python main.py
 ├── start.bat                      ← double-click to launch on Windows
-├── pyproject.toml                 ← ruff, mypy, pytest config
-├── requirements.txt               ← runtime dependencies
-├── requirements-dev.txt           ← dev-only: pytest, ruff, mypy, bandit
+├── pyproject.toml                 ← project metadata, dependencies, and tool config
+├── uv.lock                        ← committed, reproducible dependency resolution
+├── .python-version                ← Python 3.12
 ├── .pre-commit-config.yaml
 ├── .gitignore
 └── README.md
@@ -61,11 +61,27 @@ krithika/                          ← repo root
 
 ### `pyproject.toml`
 
-Configure all tooling in one file:
+Use uv for project metadata, dependency management, environment synchronization, and locking. Runtime dependencies live in `[project].dependencies`; development tools live in `[dependency-groups].dev`. Use `uv add <package>` or `uv add --group dev <package>` and commit `pyproject.toml` and `uv.lock` together. Never edit `uv.lock` manually.
 
 ```toml
+[project]
+name = "krithika"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["loguru>=0.7,<1", "pydantic-settings>=2.8,<3", "PyYAML>=6,<7"]
+
+[dependency-groups]
+dev = ["bandit>=1.8,<2", "mypy>=1.15,<2", "pre-commit>=4.2,<5", "pytest>=8.3,<10", "pytest-asyncio>=1.0,<2", "ruff>=0.11,<1"]
+
+[tool.uv]
+required-version = "==0.12.0"
+package = false
+
 [tool.ruff]
+target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 
 [tool.mypy]
@@ -118,7 +134,7 @@ copy config.yaml.example config.yaml
 
 ```bat
 @echo off
-python main.py
+uv run python main.py
 pause
 ```
 
@@ -126,35 +142,35 @@ Double-click to run Krithika. The `pause` keeps the window open if it crashes so
 
 ### `.github/workflows/ci.yml`
 
-Triggers: push and pull_request to `main` and `develop`.
+Triggers: push to `main` and `phase/**`, pull_request to `main`, reusable `workflow_call`, and manual dispatch.
 
 Steps in order:
 1. Checkout
-2. Set up Python 3.12
-3. Install `requirements-dev.txt`
-4. **Ruff lint** — `ruff check .`
-5. **Mypy type check** — `mypy krithika/`
-6. **Bandit security scan** — `bandit -r krithika/ -ll` (medium severity and above fails the build)
-7. **Unit tests** — `pytest tests/unit/ -v`
-8. **Integration tests** — `pytest tests/integration/ -v -m integration` (may be skipped in CI if they need live APIs — use `@pytest.mark.integration` and a `RUN_INTEGRATION=true` env gate)
+2. Set up uv and Python 3.12
+3. `uv sync --locked --all-groups`
+4. **Ruff lint** — `uv run --no-sync ruff check .`
+5. **Ruff format check** — `uv run --no-sync ruff format --check .`
+6. **Mypy type check** — `uv run --no-sync mypy krithika/`
+7. **Bandit security scan** — `uv run --no-sync bandit -r krithika/ -ll`
+8. **Unit tests** — `uv run --no-sync pytest tests/unit/ -v`
+9. On PRs and main pushes, run the safe full suite and `uv audit --locked`. Exclude live-API/system tests from hosted PR runs; never pass secrets to untrusted PR code.
 
 ### `.github/workflows/release.yml`
 
 Triggers: push of tag matching `v*.*.*`.
 
 Steps:
-1. All CI steps above must pass first (use `needs: ci`)
-2. Install PyInstaller
-3. `pyinstaller --onefile --name krithika --windowed main.py`
+1. Call the reusable CI workflow with `full_validation: true`; make the build job depend on that check job.
+2. Install PyInstaller in a dedicated `build` dependency group with `uv add --group build pyinstaller`.
+3. `uv run --no-sync pyinstaller --onefile --name krithika --windowed main.py`
 4. Upload `dist/krithika.exe` as a GitHub Release asset
 
 ### `scripts/setup_dev.bat`
 
 ```bat
 @echo off
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-pre-commit install
+uv sync --locked --all-groups
+uv run pre-commit install
 echo Setup complete.
 ```
 
@@ -188,7 +204,7 @@ copy config.yaml.example config.yaml
 scripts\setup_dev.bat
 
 # Run
-python main.py
+uv run python main.py
 ```
 
 ---
@@ -196,10 +212,13 @@ python main.py
 ## Definition of Done
 
 - Repo structure matches the layout above exactly
-- `python main.py` starts without error (even if it exits immediately — no code yet)
-- `ruff check .` passes with zero warnings
-- `mypy krithika/` passes
-- `pytest tests/` passes (zero tests = zero failures is fine for this phase)
+- `uv run python main.py` starts without error (even if it exits immediately — no code yet)
+- `uv run ruff check .` passes with zero warnings
+- `uv run ruff format --check .` passes
+- `uv run mypy krithika/` passes
+- Pytest passes when tests exist; CI reports a clear skip before the initial test scaffold is added
+- `uv lock --check` confirms the committed lockfile is current
+- `uv audit --locked` reports no unresolved dependency vulnerabilities
 - CI pipeline runs green on a push to `main`
 - `config.yaml.example` has all keys documented
 - `README.md` has setup and run instructions
@@ -208,7 +227,7 @@ python main.py
 
 ## Success Criteria
 
-1. A new developer (or coding agent) can clone the repo, run `scripts/setup_dev.bat`, copy `config.yaml.example`, and be ready to develop in under 5 minutes
+1. A new developer (or coding agent) can clone the repo, run `uv sync --locked --all-groups`, copy `config.yaml.example`, and be ready to develop in under 5 minutes
 2. A bad import or type error in any `krithika/` file fails the CI pipeline automatically
 3. Pushing a `v0.1.0` tag produces a downloadable `krithika.exe` in GitHub Releases
 
@@ -218,8 +237,9 @@ python main.py
 
 - [ ] Repo folder structure created as specified
 - [ ] `pyproject.toml` configured (ruff, mypy, pytest)
-- [ ] `requirements.txt` created (empty or placeholder)
-- [ ] `requirements-dev.txt` created (ruff, mypy, pytest, pytest-asyncio, bandit, pre-commit, loguru)
+- [ ] `uv.lock` generated, committed, and checked with `uv lock --check`
+- [ ] `.python-version` pins Python 3.12
+- [ ] `.gitignore` excludes `.venv/`, local config, and secret files
 - [ ] `config.yaml.example` created with all keys
 - [ ] `config.yaml` added to `.gitignore`
 - [ ] `.pre-commit-config.yaml` configured (ruff, mypy)

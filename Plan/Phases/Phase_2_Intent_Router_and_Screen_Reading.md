@@ -198,16 +198,13 @@ if not elements:
 
 ---
 
-## Dependencies to Add to `requirements.txt`
+## Dependencies to Add with uv
 
+```powershell
+uv add "typesafe-sdk>=1.0.0" "pywinauto>=0.6.8" "pywin32>=306" "mss>=9.0.1" "Pillow>=10.0.0" "onnxruntime>=1.17.0"
 ```
-typesafe-sdk>=1.0.0
-pywinauto>=0.6.8
-pywin32>=306
-mss>=9.0.1
-Pillow>=10.0.0
-onnxruntime>=1.17.0    # for OmniParser
-```
+
+Commit the resulting `pyproject.toml` and `uv.lock` changes together.
 
 OmniParser model weights must be downloaded separately (see README instructions). Store in `models/omniparser/`.
 

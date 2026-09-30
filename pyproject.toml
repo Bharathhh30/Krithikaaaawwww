@@ -1,0 +1,48 @@
+[project]
+name = "krithika"
+version = "0.1.0"
+description = "A voice-operated AI screen partner for Windows"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "loguru>=0.7,<1",
+    "pydantic-settings>=2.8,<3",
+    "PyYAML>=6,<7",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8,<2",
+    "mypy>=1.15,<2",
+    "pre-commit>=4.2,<5",
+    "pytest>=8.3,<10",
+    "pytest-asyncio>=1.0,<2",
+    "ruff>=0.11,<1",
+]
+
+[tool.uv]
+required-version = "==0.12.0"
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.format]
+exclude = ["**/*.md"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: integration tests that run without external credentials",
+    "system: tests requiring interactive Windows, audio devices, or desktop automation",
+    "live_api: tests requiring live third-party API credentials",
+]
