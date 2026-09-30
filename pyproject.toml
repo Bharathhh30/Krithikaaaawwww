@@ -10,6 +10,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+build = [
+    "pyinstaller>=6,<7",
+]
 dev = [
     "bandit>=1.8,<2",
     "mypy>=1.15,<2",
@@ -40,6 +43,7 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 markers = [
     "integration: integration tests that run without external credentials",

@@ -8,7 +8,7 @@ Before any feature code is written, the repository must be production-grade from
 
 ## What We're Building
 
-- Python package structure following the `src` layout pattern
+- Python package structure in the repository-root `krithika/` directory (the selected layout avoids an extra `src/` level for this executable-first Windows app)
 - Configuration management with Pydantic BaseSettings and `config.yaml`
 - GitHub Actions CI pipeline (lint + type-check + test on every push/PR)
 - GitHub Actions release pipeline (build `.exe` on git tag)
@@ -25,8 +25,8 @@ Before any feature code is written, the repository must be production-grade from
 krithika/                          ← repo root
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                 ← runs on every push / PR
-│       └── release.yml            ← runs on git tag v*.*.*
+│       ├── ci.yml                 ← fast checks and PR/main validation
+│       └── release.yml            ← validates, builds, and publishes on v*.*.* tags
 ├── krithika/                      ← main Python package
 │   ├── __init__.py
 │   ├── voice/
@@ -121,7 +121,7 @@ memory:
 log_level: INFO
 ```
 
-Load with Pydantic BaseSettings so every missing required key raises a clear error at startup, not mid-run.
+Load with Pydantic BaseSettings so invalid values raise a clear error at startup. In a source checkout, resolve `config.yaml` from the repository root; in a frozen Windows build, resolve it beside the executable. `KRITHIKA_CONFIG_FILE` may explicitly override either location.
 
 ### `config.yaml` is in `.gitignore`
 
@@ -163,7 +163,7 @@ Steps:
 1. Call the reusable CI workflow with `full_validation: true`; make the build job depend on that check job.
 2. Install PyInstaller in a dedicated `build` dependency group with `uv add --group build pyinstaller`.
 3. `uv run --no-sync pyinstaller --onefile --name krithika --windowed main.py`
-4. Upload `dist/krithika.exe` as a GitHub Release asset
+4. Copy `config.yaml.example` beside the executable and upload both files as GitHub Release assets
 
 ### `scripts/setup_dev.bat`
 
@@ -235,20 +235,17 @@ uv run python main.py
 
 ## Checklist
 
-- [ ] Repo folder structure created as specified
-- [ ] `pyproject.toml` configured (ruff, mypy, pytest)
-- [ ] `uv.lock` generated, committed, and checked with `uv lock --check`
-- [ ] `.python-version` pins Python 3.12
-- [ ] `.gitignore` excludes `.venv/`, local config, and secret files
-- [ ] `config.yaml.example` created with all keys
-- [ ] `config.yaml` added to `.gitignore`
-- [ ] `.pre-commit-config.yaml` configured (ruff, mypy)
-- [ ] `main.py` created (minimal — just imports and a `if __name__ == "__main__"` block)
-- [ ] `start.bat` created
-- [ ] `scripts/setup_dev.bat` created
-- [ ] `.github/workflows/ci.yml` created and tested
-- [ ] `.github/workflows/release.yml` created
-- [ ] `README.md` created with setup + run instructions
+- [x] Repository-root package, test, prompt, and script structure created
+- [x] `pyproject.toml` configured (Ruff, mypy, pytest, and dependency groups)
+- [x] `uv.lock` generated and checked with `uv lock --check`
+- [x] `.python-version` pins Python 3.12
+- [x] `.gitignore` excludes `.venv/`, local config, and secret files
+- [x] `config.yaml.example` created with documented settings; local `config.yaml` is ignored
+- [x] `.pre-commit-config.yaml` configured
+- [x] `main.py` bootstrap, `start.bat`, and `scripts/setup_dev.bat` created
+- [x] `.github/workflows/ci.yml` created and locally validated
+- [x] `.github/workflows/release.yml` created; release execution awaits a version tag
+- [x] `README.md` created with setup and run instructions
 - [ ] CI pipeline passes on push to `main`
 - [ ] Release pipeline tested with a `v0.0.1` tag
 

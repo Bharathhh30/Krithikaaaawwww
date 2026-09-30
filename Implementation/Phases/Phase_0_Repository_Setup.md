@@ -1,71 +1,44 @@
 # Phase 0 — Repository Setup & CI/CD
 
-**Status:** In progress
-**Date:** 2026-09-30
+**Status:** In progress — local implementation is ready for PR review; GitHub acceptance checks remain pending
+**Updated:** 2026-09-30
 
-## Scope and Outcome
+## Delivered
 
-- Established the phase branch `phase/0-repository-setup`.
-- Added baseline CI configuration; this is the initial infrastructure slice, not completion of all Phase 0 acceptance criteria.
-- Added CI/branching instructions in `Implementation/CI_AND_BRANCHING.md`.
-- Standardized dependency management on uv, replacing the temporary requirements-file approach.
+- Created the repository-root `krithika/` package, module placeholders, unit/integration test folders, `prompts/`, and Windows setup/build scripts.
+- Added typed Pydantic settings with YAML defaults and environment-variable overrides, including config lookup beside a packaged executable; added a minimal entry point, example configuration, and developer-facing README.
+- Standardized dependency management on uv (`pyproject.toml`, pinned uv version, Python 3.12, and committed `uv.lock`); added Ruff, strict mypy, Bandit, pytest, pre-commit, and PyInstaller tooling.
+- Added Windows CI for phase pushes, PRs, and `main`, with fast checks and stronger PR/main validation (safe full suite, dependency audit, executable smoke build).
+- Added tag-triggered release automation that reuses full validation, builds `krithika.exe`, and creates a GitHub Release.
+- Updated phase guidance and CI/branching documentation. The chosen repository-root package layout is intentional; the earlier “src layout” phrase was inconsistent with the rest of the planned tree.
 
-## Design Decisions
+## Design and Safety Decisions
 
-- `pyproject.toml` owns runtime and development dependency declarations; `uv.lock` records their resolved versions.
-- Phase branches run fast checks on every push.
-- Pull requests to `main` and pushes to `main` additionally run the complete safe test suite and dependency audit.
-- Live-API and interactive-system tests are excluded from hosted PR CI to avoid secrets and desktop/device dependencies.
-- Use GitHub branch protection to require PR checks before merge; post-merge CI is verification, not a merge gate.
+- CI tests do not receive secrets and exclude `live_api` and `system` tests. GitHub branch rules, not a post-merge run, are the merge gate.
+- Hosted dependencies are synchronized from the lockfile. GitHub Actions are pinned to reviewed commit SHAs.
+- Phase 0 remains open until its PR checks pass, required `main` checks are configured, and a real release-tag run is exercised. Do not start Phase 1 before those gates are met or explicitly deferred.
 
-## Changed Files
+## Validation Performed
 
-- `.github/workflows/ci.yml` — Windows/Python 3.12 checks using `uv sync --locked --all-groups`, Ruff, mypy, Bandit, pytest, and `uv audit --locked`.
-- `.github/dependabot.yml` — weekly updates for GitHub Actions and Python dependencies.
-- `pyproject.toml` — project metadata, runtime/development dependency groups, uv version constraint, and shared tool configuration.
-- `uv.lock` and `.python-version` — reproducible dependencies and Python 3.12 selection.
-- `.gitignore` — ignores `.venv`, generated Python files, and local secrets/configuration.
-- `Implementation/CI_AND_BRANCHING.md` — phase branch names, CI behavior, GitHub setup steps, and commands.
-- `Plan/` — changed dependency guidance and commands across Phase 0–6 to use uv and `uv.lock`.
+| Check | Result |
+|---|---|
+| `uv sync --locked --all-groups`; `uv lock --check` | Passed |
+| Ruff lint and format checks | Passed; 12 files already formatted |
+| `uv run --no-sync mypy krithika` | Passed; 9 source files |
+| `uv run --no-sync bandit -r krithika -ll` | Passed; no issues |
+| Full safe pytest suite | Passed; 5 tests. This managed Windows environment denied pytest’s default system-temp path, so the suite passed with `-p no:cacheprovider --basetemp .pytest-tmp`. |
+| `scripts/build.bat`; verify and run `dist\krithika.exe` | Passed; executable built, example config copied beside it, and packaged app launched |
+| `uv audit --locked` | Passed; no known vulnerabilities in 43 packages (uv labels this command experimental) |
+| CI/release/Dependabot YAML syntax | Passed with PyYAML |
+| `git diff --check` | Passed |
+| GitHub PR checks, `main` ruleset, tagged release workflow | Pending GitHub setup/real runs |
 
-## Validation
+The first default pytest attempt hit environment filesystem restrictions, not an assertion failure. Re-running against a temporary directory inside the repository passed all tests. The executable smoke run confirms bootstrap packaging only; GUI/audio behavior is not implemented in this phase.
 
-| Check | Command or steps | Result |
-|---|---|---|
-| Branch | `git branch --show-current` | Passed: `phase/0-repository-setup` |
-| Whitespace | Trailing-whitespace scan of new setup files | Passed |
-| TOML config | Python `tomllib` parse of `pyproject.toml` | Passed |
-| Lockfile | `uv lock --check` | Passed |
-| Environment | `uv sync --locked --all-groups` | Passed: synchronized 36 packages in `.venv` |
-| Lint | `uv run --no-sync ruff check .` | Passed |
-| Formatting | `uv run --no-sync ruff format --check .` | Passed |
-| Dependency audit | `uv audit --locked` | Passed: no known vulnerabilities found; uv reports the audit command as experimental |
-| Workflow YAML parser | PyYAML parse of CI and Dependabot YAML | Passed |
-| Mypy, Bandit, pytest | CI commands | Not run: application package and tests do not exist yet |
-| GitHub Actions | Push branch and open PR | Pending |
-| GitHub branch rules | Repository settings | Pending |
+## Remaining Acceptance and Handoff
 
-## Safety, Limitations, and Deviations
+1. Push this branch and open the PR to `main`; confirm `CI / fast-checks` and `CI / merge-validation` succeed.
+2. Configure the `main` ruleset to require both PR checks, then merge only after they pass.
+3. Exercise `.github/workflows/release.yml` with a disposable `v0.0.1` tag when appropriate; document any GitHub-side limitations.
 
-- No secrets are passed to pull-request workflows; live API and interactive Windows tests are excluded by marker.
-- `uv audit` is currently marked experimental by the pinned uv release; keep its behavior under review as uv evolves.
-- The workflow skips checks whose package/test directories do not exist yet. Those checks become active as Phase 0 scaffolding and later phases add code.
-- Phase 0 remains incomplete until the workflow runs successfully on GitHub, required checks are configured on `main`, and the remaining Phase 0 checklist is addressed.
-
-## Handoff
-
-Push this branch, open a PR to `main`, verify the two CI jobs, and configure the `main` ruleset as documented in `Implementation/CI_AND_BRANCHING.md`. Then complete the remaining Phase 0 setup before branching Phase 1.
-
-## Commit Recommendation
-
-```text
-Subject: build: standardize dependency management on uv
-
-Body:
-Use pyproject.toml and a committed uv.lock for runtime and development
-dependencies. Run locked uv sync and checks in CI; update all phase plans
-and setup guidance to use uv.
-
-Validation: uv lock/sync/audit, Ruff lint/format, TOML, and YAML checks passed.
-GitHub Actions checks are pending.
-```
+When those checks are complete, fill in the Phase 0 plan conclusion and mark the phase complete before creating the Phase 1 branch.

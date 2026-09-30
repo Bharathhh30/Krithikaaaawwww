@@ -12,12 +12,14 @@ __pycache__/
 *.egg-info/
 .venv/
 .pytest_cache/
+.pytest-tmp/
 .mypy_cache/
 .ruff_cache/
 build/
 dist/
 htmlcov/
 .coverage*
+krithika.spec
 
 # Local configuration and secrets
 config.yaml

@@ -55,32 +55,13 @@ jobs:
         run: uv run --no-sync ruff format --check .
 
       - name: Mypy type check
-        shell: pwsh
-        run: |
-          if (Test-Path "krithika") {
-            uv run --no-sync mypy krithika
-          } else {
-            Write-Host "Skipping mypy: the planned krithika package has not been created yet."
-          }
+        run: uv run --no-sync mypy krithika
 
       - name: Bandit security scan
-        shell: pwsh
-        run: |
-          if (Test-Path "krithika") {
-            uv run --no-sync bandit -r krithika -ll
-          } else {
-            Write-Host "Skipping Bandit: the planned krithika package has not been created yet."
-          }
+        run: uv run --no-sync bandit -r krithika -ll
 
       - name: Unit tests
-        shell: pwsh
-        run: |
-          $tests = Get-ChildItem "tests/unit" -Recurse -File -Filter "test_*.py" -ErrorAction SilentlyContinue
-          if ($tests) {
-            uv run --no-sync pytest tests/unit -v
-          } else {
-            Write-Host "Skipping unit tests: no unit test files exist yet."
-          }
+        run: uv run --no-sync pytest tests/unit -v
 
   merge-validation:
     name: merge-validation
@@ -107,14 +88,23 @@ jobs:
         run: uv sync --locked --all-groups
 
       - name: Run all safe tests
-        shell: pwsh
-        run: |
-          $tests = Get-ChildItem "tests" -Recurse -File -Filter "test_*.py" -ErrorAction SilentlyContinue
-          if ($tests) {
-            uv run --no-sync pytest tests -m "not live_api and not system" -v
-          } else {
-            Write-Host "Skipping full test suite: no test files exist yet."
-          }
+        run: uv run --no-sync pytest tests -m "not live_api and not system" -v
 
       - name: Audit locked dependencies
         run: uv audit --locked
+
+      - name: Smoke-build Windows executable
+        run: uv run --no-sync pyinstaller --onefile --name krithika --windowed main.py
+
+      - name: Include example configuration beside executable
+        run: Copy-Item config.yaml.example dist/config.yaml.example
+
+      - name: Verify release files exist
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/krithika.exe")) {
+            throw "PyInstaller did not produce dist/krithika.exe"
+          }
+          if (-not (Test-Path "dist/config.yaml.example")) {
+            throw "The example configuration was not copied beside the executable"
+          }
