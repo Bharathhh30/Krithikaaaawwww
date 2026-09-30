@@ -1,0 +1,8 @@
+.agents/
+.codemie/
+docs/
+node_modules/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+

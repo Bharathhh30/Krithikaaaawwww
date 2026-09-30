@@ -1,0 +1,342 @@
+# Phase 5 — Memory System (Obsidian)
+
+## Overview
+
+Replace the Phase 4 memory stub with a real three-layer memory system. After this phase, Krithika remembers everything across sessions — raw history in SQLite, semantic search via ChromaDB, and human-readable wiki pages written to an Obsidian vault at `~/KrithikaMemory/`. Krithika becomes genuinely persistent and learns from every interaction.
+
+---
+
+## What We're Building
+
+| Component | Purpose |
+|---|---|
+| `HistoryStore` | Writes every interaction to SQLite — full audit trail, never deleted |
+| `VectorStore` | Embeds interactions in ChromaDB for semantic similarity search |
+| `ObsidianWriter` | Writes structured wiki pages to `~/KrithikaMemory/` after task completion |
+| `WorkingMemory` | In-process session state (current task, step number, active app) |
+| `MemoryManager` | Facade that coordinates all layers; replaces the Phase 4 stub |
+
+---
+
+## Files to Create
+
+```
+krithika/
+└── memory/
+    ├── __init__.py
+    ├── manager.py          # MemoryManager facade (replaces stub)
+    ├── history.py          # HistoryStore — SQLite
+    ├── vectors.py          # VectorStore — ChromaDB
+    ├── obsidian.py         # ObsidianWriter — Markdown to ~/KrithikaMemory/
+    └── working.py          # WorkingMemory — in-process session state
+
+tests/unit/
+├── test_history_store.py
+├── test_vector_store.py
+├── test_obsidian_writer.py
+└── test_memory_manager.py
+
+tests/integration/
+└── test_memory_pipeline.py
+```
+
+---
+
+## Vault Location
+
+Always resolved at runtime — never hardcoded:
+
+```python
+import os
+VAULT_PATH = os.path.join(os.path.expanduser("~"), "KrithikaMemory")
+```
+
+Krithika creates `KrithikaMemory/` and its subdirectories on first run.
+
+---
+
+## Implementation Details
+
+### `working.py` — WorkingMemory
+
+```python
+from dataclasses import dataclass, field
+import asyncio
+
+@dataclass
+class WorkingMemory:
+    current_task: str = ""
+    current_step: int = 0
+    total_steps: int = 0
+    active_app: str = ""
+    session_id: str = ""
+    extras: dict = field(default_factory=dict)
+
+class WorkingMemoryStore:
+    def __init__(self, snapshot_interval_s: int = 30) -> None: ...
+
+    def update(self, **kwargs) -> None: ...
+    def get(self) -> WorkingMemory: ...
+    def reset(self) -> None: ...
+    async def auto_snapshot(self) -> None:
+        """Saves snapshot to disk every snapshot_interval_s seconds. Run as asyncio task."""
+```
+
+Snapshot file: `~/KrithikaMemory/.session_snapshot.json` — restored on restart if session was interrupted.
+
+### `history.py` — HistoryStore
+
+```python
+import sqlite3
+from pathlib import Path
+
+class HistoryStore:
+    def __init__(self, db_path: Path) -> None: ...
+
+    def write(
+        self,
+        session_id: str,
+        user_voice: str,
+        krithika_response: str,
+        active_app: str,
+        intent: str,
+        actions_taken: list[str],
+    ) -> None: ...
+
+    def recent(self, limit: int = 20) -> list[dict]: ...
+```
+
+Schema:
+```sql
+CREATE TABLE interactions (
+    id          TEXT PRIMARY KEY,
+    session_id  TEXT NOT NULL,
+    timestamp   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    user_voice  TEXT NOT NULL,
+    response    TEXT NOT NULL,
+    active_app  TEXT,
+    intent      TEXT,
+    actions     TEXT   -- JSON array
+);
+CREATE INDEX idx_session ON interactions(session_id);
+CREATE INDEX idx_app ON interactions(active_app);
+```
+
+DB path: `~/KrithikaMemory/history.db`
+
+### `vectors.py` — VectorStore
+
+```python
+import chromadb
+
+class VectorStore:
+    def __init__(self, persist_dir: Path) -> None:
+        self._client = chromadb.PersistentClient(path=str(persist_dir))
+        self._collection = self._client.get_or_create_collection("interactions")
+
+    def add(self, interaction_id: str, text: str, metadata: dict) -> None:
+        """Embed and store. Uses ChromaDB's built-in embedding model (no extra API call)."""
+
+    def search(self, query: str, n_results: int = 3) -> list[dict]:
+        """Return top-n semantically similar past interactions."""
+```
+
+Persist dir: `~/KrithikaMemory/vectors/`
+
+ChromaDB's default embedding model runs locally — no OpenAI embeddings API needed. This keeps memory retrieval completely offline.
+
+### `obsidian.py` — ObsidianWriter
+
+```python
+from pathlib import Path
+
+class ObsidianWriter:
+    def __init__(self, vault_path: Path) -> None: ...
+
+    def write_task_completion(
+        self,
+        app: str,
+        task_name: str,
+        steps: list[str],
+        date: str,
+    ) -> Path:
+        """Write a wiki page. Returns the path of the written file."""
+
+    def write_active_task(self, task: WorkingMemory) -> None:
+        """Overwrite ~/KrithikaMemory/Tasks/Active.md with current task state."""
+
+    def archive_task(self, task: WorkingMemory) -> None:
+        """Move active task to Tasks/Completed/YYYY-MM-DD_task_name.md"""
+```
+
+**Wiki page format** (auto-generated by `write_task_completion`):
+```markdown
+# Importing Media in DaVinci Resolve
+> Auto-generated by Krithika on 2026-09-30
+
+## Steps Completed
+1. Opened DaVinci Resolve
+2. Clicked "Import Media" in the Media Pool panel
+3. Selected footage files
+4. Confirmed import
+
+## Notes
+- Import Media button is in the bottom-left of the Media Pool panel
+- Supported formats: MP4, MOV, MXF
+
+## Tags
+#davinci-resolve #media #import
+```
+
+Vault folder structure:
+```
+~/KrithikaMemory/
+├── Apps/
+│   └── {AppName}/
+│       └── {TaskName}.md
+├── Tasks/
+│   ├── Active.md
+│   └── Completed/
+│       └── YYYY-MM-DD_{task_name}.md
+└── .session_snapshot.json
+```
+
+Create subdirectories automatically with `Path.mkdir(parents=True, exist_ok=True)`.
+
+### `manager.py` — MemoryManager
+
+The facade that replaces the Phase 4 stub. This is what the `Orchestrator` depends on.
+
+```python
+class MemoryManager:
+    def __init__(
+        self,
+        history: HistoryStore,
+        vectors: VectorStore,
+        obsidian: ObsidianWriter,
+        working: WorkingMemoryStore,
+    ) -> None: ...
+
+    async def retrieve(self, query: str, active_app: str) -> str:
+        """Return a formatted string of relevant memory for injection into AI Brain context."""
+        # 1. Check working memory (instant)
+        # 2. ChromaDB semantic search (top-3)
+        # 3. Read app wiki file if exists
+        # Combine and return as formatted text
+
+    async def write(
+        self,
+        user_voice: str,
+        response: BrainResponse,
+        active_app: str,
+        intent: str,
+    ) -> None:
+        """Persist interaction to history and vectors. Generate wiki page if task completed."""
+```
+
+Memory retrieval result format (injected into `BrainContext.retrieved_memory`):
+```
+=== Recent in this session ===
+[2026-09-30 14:22] You asked about importing media. Krithika said: click Import Media in the bottom-left panel.
+
+=== From past sessions ===
+[2026-09-25] In DaVinci Resolve: you learned to use the Color page for grading.
+
+=== Wiki: DaVinci Resolve ===
+Import Media: button in Media Pool bottom-left. Supports MP4, MOV, MXF.
+```
+
+---
+
+## Dependencies to Add to `requirements.txt`
+
+```
+chromadb>=0.4.24
+```
+
+No additional embedding library needed — ChromaDB includes a local default embedding model.
+
+---
+
+## Testing Requirements
+
+### Unit Tests — `test_history_store.py`
+- Test that an interaction is written and can be retrieved by `recent()`
+- Test with an in-memory SQLite DB (`:memory:` path) — no file I/O in unit tests
+
+### Unit Tests — `test_vector_store.py`
+- Test that `add()` stores an entry and `search()` returns it for a similar query
+- Use a temp directory for ChromaDB persist path
+
+### Unit Tests — `test_obsidian_writer.py`
+- Test that `write_task_completion()` creates the correct file at the correct vault path
+- Test that the Markdown content includes all steps
+- Use `tmp_path` pytest fixture — no writes to `~/KrithikaMemory` in unit tests
+
+### Unit Tests — `test_memory_manager.py`
+- Mock all four sub-components
+- Test that `retrieve()` combines results from all three sources in the correct order
+- Test that `write()` calls history, vectors, and obsidian in the correct cases
+
+### Integration Tests — `test_memory_pipeline.py`
+- `@pytest.mark.integration`
+- Write 5 interactions, then search for a semantically related query — verify top result is relevant
+- Writes to a temp vault path, not `~/KrithikaMemory`
+
+---
+
+## Running Locally
+
+After this phase, restart Krithika, complete a task, then check:
+
+```
+# Should see the wiki page
+type "%USERPROFILE%\KrithikaMemory\Tasks\Active.md"
+
+# After completing task:
+dir "%USERPROFILE%\KrithikaMemory\Apps\"
+```
+
+Open `~/KrithikaMemory/` in Obsidian to browse the wiki visually.
+
+---
+
+## Definition of Done
+
+- Every interaction is written to `history.db` within 1 second of completion
+- `memory.retrieve()` returns relevant past context for a query related to something asked before
+- After completing a task, a Markdown wiki page appears in the correct Obsidian vault folder
+- Working memory survives a crash — on restart, current task is restored from snapshot
+- `~/KrithikaMemory/` is created automatically on first run
+- All unit tests pass in CI (all use temp paths, never write to `~`)
+
+---
+
+## Success Criteria
+
+1. Complete "import footage in DaVinci Resolve" → a wiki page appears at `~/KrithikaMemory/Apps/DaVinci_Resolve/Importing_Footage.md`
+2. Restart Krithika, ask "what did I do in DaVinci Resolve last time?" → Krithika retrieves and describes the session from ChromaDB
+3. Crash mid-task and restart → Krithika resumes from the last snapshot
+
+---
+
+## Checklist
+
+- [ ] `working.py` — `WorkingMemory` + `WorkingMemoryStore` with auto-snapshot
+- [ ] `history.py` — `HistoryStore` with SQLite schema and indexes
+- [ ] `vectors.py` — `VectorStore` with ChromaDB local embeddings
+- [ ] `obsidian.py` — `ObsidianWriter` creating correct vault structure
+- [ ] `manager.py` — `MemoryManager` replacing the Phase 4 stub
+- [ ] Orchestrator updated to use real `MemoryManager`
+- [ ] `~/KrithikaMemory/` auto-created on first run
+- [ ] Unit tests written (all using temp paths)
+- [ ] Integration test written
+- [ ] Wiki page verified in Obsidian after task completion
+- [ ] CI pipeline passes
+
+---
+
+## Conclusion
+
+> *To be filled after completion.*
+> Document ChromaDB retrieval quality on real interactions, any performance issues with auto-snapshot, Obsidian vault integration notes, and anything Phase 6 needs to know.
