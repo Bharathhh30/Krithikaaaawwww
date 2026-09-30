@@ -1,7 +1,7 @@
 # Phase 0 — Repository Setup & CI/CD
 
-**Status:** In progress — local implementation is ready for PR review; GitHub acceptance checks remain pending
-**Updated:** 2026-09-30
+**Status:** Complete
+**Completed:** 2026-09-30
 
 ## Delivered
 
@@ -31,14 +31,14 @@
 | `uv audit --locked` | Passed; no known vulnerabilities in 43 packages (uv labels this command experimental) |
 | CI/release/Dependabot YAML syntax | Passed with PyYAML |
 | `git diff --check` | Passed |
-| GitHub PR checks, `main` ruleset, tagged release workflow | Pending GitHub setup/real runs |
+| Phase 0 PR checks and post-merge CI | Passed (confirmed by repository owner) |
+| Release workflow on `v0.0.1` | Passed; run `36721293529` completed successfully |
+| GitHub Release assets | Uploaded: `krithika.exe` (17,465,829 bytes) and `config.yaml.example` (336 bytes) |
 
 The first default pytest attempt hit environment filesystem restrictions, not an assertion failure. Re-running against a temporary directory inside the repository passed all tests. The executable smoke run confirms bootstrap packaging only; GUI/audio behavior is not implemented in this phase.
 
-## Remaining Acceptance and Handoff
+## Completion and Handoff
 
-1. Push this branch and open the PR to `main`; confirm `CI / fast-checks` and `CI / merge-validation` succeed.
-2. Configure the `main` ruleset to require both PR checks, then merge only after they pass.
-3. Exercise `.github/workflows/release.yml` with a disposable `v0.0.1` tag when appropriate; document any GitHub-side limitations.
+The Phase 0 PR checks and post-merge CI passed. The `v0.0.1` tag triggered the release workflow; validation, packaging, and GitHub Release publication all succeeded with both expected assets. The `main` branch ruleset was configured as part of the merge process.
 
-When those checks are complete, fill in the Phase 0 plan conclusion and mark the phase complete before creating the Phase 1 branch.
+Begin Phase 1 from the latest `main` on `phase/1-voice-pipeline`. The release workflow test created a real `v0.0.1` GitHub Release; treat that as an infrastructure test release, not a user-facing product release.
