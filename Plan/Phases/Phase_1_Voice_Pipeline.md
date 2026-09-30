@@ -111,16 +111,13 @@ class TTSProvider(ABC):
 
 ---
 
-## Dependencies to Add to `requirements.txt`
+## Dependencies to Add with uv
 
+```powershell
+uv add "pvporcupine>=3.0.0" "sounddevice>=0.4.6" "openai-whisper>=20231117" "silero-vad>=5.1" "torch>=2.1.0" "pyttsx3>=2.90"
 ```
-pvporcupine>=3.0.0
-sounddevice>=0.4.6
-openai-whisper>=20231117
-silero-vad>=5.1
-torch>=2.1.0          # required by silero-vad; CPU-only build is fine
-pyttsx3>=2.90
-```
+
+Commit the resulting `pyproject.toml` and `uv.lock` changes together.
 
 ---
 

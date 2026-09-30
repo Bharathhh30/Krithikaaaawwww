@@ -248,11 +248,13 @@ Import Media: button in Media Pool bottom-left. Supports MP4, MOV, MXF.
 
 ---
 
-## Dependencies to Add to `requirements.txt`
+## Dependencies to Add with uv
 
+```powershell
+uv add "chromadb>=0.4.24"
 ```
-chromadb>=0.4.24
-```
+
+Commit the resulting `pyproject.toml` and `uv.lock` changes together.
 
 No additional embedding library needed — ChromaDB includes a local default embedding model.
 

@@ -366,15 +366,13 @@ if __name__ == "__main__":
 
 ---
 
-## Dependencies to Add to `requirements.txt`
+## Dependencies to Add with uv
 
+```powershell
+uv add "anthropic>=0.28.0" "ollama>=0.2.0" "pyautogui>=0.9.54" "pydantic-settings>=2.0.0" "PyYAML>=6.0.1"
 ```
-anthropic>=0.28.0
-ollama>=0.2.0
-pyautogui>=0.9.54
-pydantic-settings>=2.0.0
-pyyaml>=6.0.1
-```
+
+Commit the resulting `pyproject.toml` and `uv.lock` changes together.
 
 ---
 

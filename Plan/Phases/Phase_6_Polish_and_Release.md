@@ -165,10 +165,16 @@ Each prompt file should include:
 
 ### `scripts/build.bat` — PyInstaller Build
 
+Add the build tool once during implementation, then commit the updated lockfile:
+
+```powershell
+uv add --group build pyinstaller
+```
+
 ```bat
 @echo off
-pip install pyinstaller
-pyinstaller ^
+uv sync --locked --all-groups
+uv run --no-sync pyinstaller ^
   --onefile ^
   --name krithika ^
   --windowed ^
@@ -190,16 +196,21 @@ Triggered by a tag push `v*.*.*`:
 ```yaml
 jobs:
   ci:
-    uses: ./.github/workflows/ci.yml   # all tests must pass first
+    uses: ./.github/workflows/ci.yml
+    with:
+      full_validation: true
 
   build-windows:
     needs: ci
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -r requirements.txt pyinstaller
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.0"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --all-groups
       - run: scripts\build.bat
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -242,11 +253,13 @@ Double-click `start.bat` at the repo root. Or add it to Windows Startup folder f
 
 ---
 
-## Dependencies to Add to `requirements.txt`
+## Dependencies to Add with uv
 
+```powershell
+uv add "elevenlabs>=1.2.0"
 ```
-elevenlabs>=1.2.0
-```
+
+Commit the resulting `pyproject.toml` and `uv.lock` changes together.
 
 ---
 

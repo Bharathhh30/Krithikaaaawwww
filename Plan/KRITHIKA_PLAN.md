@@ -553,6 +553,7 @@ async def main_loop():
 | Semantic memory | ChromaDB | Local vector DB |
 | Wiki memory | **Obsidian vault** (Markdown files) | Human-readable, visual graph, editable |
 | Orchestration | Python `asyncio` | Non-blocking concurrent pipeline |
+| Dependency management | uv + committed `uv.lock` | Reproducible project and development environments |
 | Packaging | PyInstaller | Single `.exe` |
 
 ---
@@ -691,10 +692,14 @@ krithika/
 │   ├── history.db
 │   └── vectors/               # ChromaDB store
 # Obsidian vault lives at %USERPROFILE%\KrithikaMemory\ — outside the project
-├── config.yaml                # Provider, model, API keys config
+├── config.yaml.example        # Shareable template; local config.yaml is ignored
 ├── main.py                    # Entry point
-└── requirements.txt
+├── pyproject.toml             # Project metadata, runtime/dev dependencies, tool config
+├── uv.lock                    # Reproducible dependency lock
+└── .python-version            # Python 3.12
 ```
+
+Use uv for dependency management and execution: `uv add` for runtime packages, `uv add --group dev` for development tools, `uv sync --locked --all-groups` to reproduce the environment, and `uv run` for project commands. Commit `uv.lock` with every dependency change.
 
 ---
 

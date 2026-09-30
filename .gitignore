@@ -6,3 +6,24 @@ AGENTS.md
 CLAUDE.md
 skills-lock.json
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.pytest-tmp/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+htmlcov/
+.coverage*
+krithika.spec
+
+# Local configuration and secrets
+config.yaml
+.env
+.env.*
+!.env.example
+

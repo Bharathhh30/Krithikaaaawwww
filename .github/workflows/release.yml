@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate
+    uses: ./.github/workflows/ci.yml
+    with:
+      full_validation: true
+
+  build-and-release:
+    name: build-and-release
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.0"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Sync locked dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Build Windows executable
+        run: uv run --no-sync pyinstaller --onefile --name krithika --windowed main.py
+
+      - name: Include example configuration beside executable
+        run: Copy-Item config.yaml.example dist/config.yaml.example
+
+      - name: Verify release files exist
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/krithika.exe")) {
+            throw "PyInstaller did not produce dist/krithika.exe"
+          }
+          if (-not (Test-Path "dist/config.yaml.example")) {
+            throw "The example configuration was not copied beside the executable"
+          }
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" "dist/krithika.exe" "dist/config.yaml.example" --verify-tag --generate-notes

@@ -1,0 +1,21 @@
+brain:
+  provider: claude
+  model: claude-sonnet-5
+  api_key_env: ANTHROPIC_API_KEY
+
+classifier:
+  api_key_env: TYPESAFE_API_KEY
+
+tts:
+  provider: sapi
+  api_key_env: ELEVENLABS_API_KEY
+  voice_id: ""
+
+wake_word:
+  keyword: krithika
+  access_key_env: PORCUPINE_ACCESS_KEY
+
+memory:
+  vault_path: ""
+
+log_level: INFO
