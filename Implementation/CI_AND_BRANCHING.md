@@ -61,6 +61,8 @@ Push only after reviewing `git status` and staging intended files; avoid blindly
 
 After Phase 6 is ready for a release, create and push a version tag (for example, `v0.1.0`) from the approved `main` commit. The workflow validates the tag, builds the Windows executable, and publishes the release. The first real tag run is a manual acceptance check.
 
+Phase 0's release workflow was exercised with `v0.0.1`; validation, the Windows build, and upload of both the executable and example configuration passed. This test release is infrastructure validation, not the product release.
+
 For a later phase, start from updated `main`:
 
 ```powershell
